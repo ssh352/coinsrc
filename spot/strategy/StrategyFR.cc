@@ -566,7 +566,6 @@ double StrategyFR::calc_predict_mm(sy_info& info, order_fr& order)
 
         double mmr_rate = 0;
         double mmr_num = 0;
-        qty = abs(iter.positionAmt);
         get_cm_um_brackets(iter.symbol, abs(qty) * price, mmr_rate, mmr_num);
         sum_mm = sum_mm + (abs(qty) * mmr_rate -  mmr_num) * price;
         LOG_INFO << "calc_predict_mm perp sy: " << order.sy << ", price: " << (*make_taker)[order.sy].mid_p << ", mmr: " << mmr_rate << ", mmr_num: " << mmr_num
@@ -738,10 +737,11 @@ double StrategyFR::calc_mm()
         string symbol = it.symbol;
         double qty = 0;
 
+        double markPrice = (*make_taker)[(*symbol_map)[symbol]].mid_p;
         if (symbol == "BTCUSD_PERP") {
-            qty = abs(it.positionAmt) * 100;
+            qty = abs(it.positionAmt) * 100 / markPrice;
         } else {
-            qty = abs(it.positionAmt) * 10;
+            qty = abs(it.positionAmt) * 10 / markPrice;
         }
 
         double markPrice = (*make_taker)[(*symbol_map)[symbol]].mid_p;
