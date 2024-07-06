@@ -744,7 +744,6 @@ double StrategyFR::calc_mm()
             qty = abs(it.positionAmt) * 10 / markPrice;
         }
 
-        double markPrice = (*make_taker)[(*symbol_map)[symbol]].mid_p;
         double mmr_rate;
         double mmr_num;
         get_cm_um_brackets(symbol, abs(qty), mmr_rate, mmr_num);
