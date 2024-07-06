@@ -64,7 +64,7 @@ void Position::updatePositionBySingle(const Order &rtnOrder)
 	}
 
 	if (!isInit_) {
-		(strcmp(rtnOrder.Category, INVERSE.c_str()) == 0) {
+		if (strcmp(rtnOrder.Category, INVERSE.c_str()) == 0) {
 			pnlDaily_.BuyQuantity = pnlDaily_.TodayLong * instrument_->getMultiplier() / rtnOrder.Price;
 			pnlDaily_.SellQuantity = pnlDaily_.TodayShort * instrument_->getMultiplier() / rtnOrder.Price;
 		} else {
