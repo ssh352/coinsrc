@@ -11,6 +11,7 @@ Position::Position()
 	pnlDaily_.AvgBuyPrice = 0.0;
 	pnlDaily_.AvgSellPrice = 0.0;
 	pnlDaily_.AggregatedFeeByRate = 0.0;
+	isInit_ = false;
 }
 Position::~Position()
 {
@@ -59,19 +60,55 @@ void Position::updatePositionBySingle(const Order &rtnOrder)
 {
 	double coinSize = 1;
 	if (strcmp(rtnOrder.ExchangeCode, "OKEX") == 0) {
-		SymbolInfo *symbolInfo = InitialData::getSymbolInfo(rtnOrder.InstrumentID);
-		coinSize = symbolInfo->CoinOrderSize;
+		coinSize = instrument_->getSymbolInfo().CoinOrderSize;
 	}
-	if (rtnOrder.Direction == INNER_DIRECTION_Buy) {
-		pnlDaily_.TodayLong += rtnOrder.Volume * coinSize;
-		LOG_INFO << "updatePositionBySingle INNER_DIRECTION_Buy OrderRef: " << rtnOrder.OrderRef << ", fill volume: " << rtnOrder.Volume << ", coinSize: " << coinSize
-			<< ", ExchangeCode: " << rtnOrder.ExchangeCode; 
-	} else if (rtnOrder.Direction == INNER_DIRECTION_Sell) {
-		pnlDaily_.TodayShort += rtnOrder.Volume * coinSize;
-		LOG_INFO << "updatePositionBySingle INNER_DIRECTION_Sell OrderRef: " << rtnOrder.OrderRef << ", fill volume: " << rtnOrder.Volume << ", coinSize: " << coinSize
-			<< ", ExchangeCode: " << rtnOrder.ExchangeCode; 
+
+	if (!isInit_) {
+		(strcmp(rtnOrder.Category, INVERSE.c_str()) == 0) {
+			pnlDaily_.BuyQuantity = pnlDaily_.TodayLong * instrument_->getMultiplier() / rtnOrder.Price;
+			pnlDaily_.SellQuantity = pnlDaily_.TodayShort * instrument_->getMultiplier() / rtnOrder.Price;
+		} else {
+			pnlDaily_.BuyQuantity = pnlDaily_.TodayLong * coinSize;
+			pnlDaily_.SellQuantity = pnlDaily_.TodayShort * coinSize;
+		}
+		isInit_ = true;
+	}
+	if (strcmp(rtnOrder.Category, INVERSE.c_str()) == 0) {
+		if (rtnOrder.Direction == INNER_DIRECTION_Buy) {
+			pnlDaily_.TodayLong += rtnOrder.Volume * coinSize;
+			pnlDaily_.BuyQuantity += rtnOrder.Volume * instrument_->getMultiplier() / rtnOrder.Price;
+			LOG_INFO << "update posi perp buy OrderRef: " << rtnOrder.OrderRef << ", fill volume: " << rtnOrder.Volume << ", coinSize: " << coinSize
+				<< ", TLong: " << pnlDaily_.TodayLong << ", TShort: " << pnlDaily_.TodayShort
+				<< ", BuyQuantity: " << pnlDaily_.BuyQuantity << ", SellQuantity: " << pnlDaily_.SellQuantity
+				<< ", ExchangeCode: " << rtnOrder.ExchangeCode; 
+		} else if (rtnOrder.Direction == INNER_DIRECTION_Sell) {
+			pnlDaily_.TodayShort += rtnOrder.Volume * coinSize;
+			pnlDaily_.SellQuantity += rtnOrder.Volume * instrument_->getMultiplier() / rtnOrder.Price;
+			LOG_INFO << "update posi perp sell OrderRef: " << rtnOrder.OrderRef << ", fill volume: " << rtnOrder.Volume << ", coinSize: " << coinSize
+				<< ", TLong: " << pnlDaily_.TodayLong << ", TShort: " << pnlDaily_.TodayShort
+				<< ", BuyQuantity: " << pnlDaily_.BuyQuantity << ", SellQuantity: " << pnlDaily_.SellQuantity
+				<< ", ExchangeCode: " << rtnOrder.ExchangeCode; 
+		} else {
+			LOG_FATAL << "updatePositionBySingle WR Direction: " << rtnOrder.Direction;
+		}
 	} else {
-		LOG_FATAL << "updatePositionBySingle WR Direction: " << rtnOrder.Direction;
+		if (rtnOrder.Direction == INNER_DIRECTION_Buy) {
+			pnlDaily_.TodayLong += rtnOrder.Volume * coinSize;
+			pnlDaily_.BuyQuantity += rtnOrder.Volume * coinSize;
+			LOG_INFO << "updatePositionBySingle INNER_DIRECTION_Buy OrderRef: " << rtnOrder.OrderRef << ", fill volume: " << rtnOrder.Volume << ", coinSize: " << coinSize
+				<< ", TLong: " << pnlDaily_.TodayLong << ", TShort: " << pnlDaily_.TodayShort
+				<< ", BuyQuantity: " << pnlDaily_.BuyQuantity << ", SellQuantity: " << pnlDaily_.SellQuantity
+				<< ", ExchangeCode: " << rtnOrder.ExchangeCode; 
+		} else if (rtnOrder.Direction == INNER_DIRECTION_Sell) {
+			pnlDaily_.TodayShort += rtnOrder.Volume * coinSize;
+			pnlDaily_.SellQuantity += rtnOrder.Volume * coinSize;
+			LOG_INFO << "updatePositionBySingle INNER_DIRECTION_Sell OrderRef: " << rtnOrder.OrderRef << ", fill volume: " << rtnOrder.Volume << ", coinSize: " << coinSize
+				<< ", TLong: " << pnlDaily_.TodayLong << ", TShort: " << pnlDaily_.TodayShort
+				<< ", BuyQuantity: " << pnlDaily_.BuyQuantity << ", SellQuantity: " << pnlDaily_.SellQuantity
+				<< ", ExchangeCode: " << rtnOrder.ExchangeCode; 
+		} else {
+			LOG_FATAL << "updatePositionBySingle WR Direction: " << rtnOrder.Direction;
+		}
 	}
 }
 
@@ -80,8 +117,7 @@ void Position::updatePositionByDouble(const Order &rtnOrder)
 {
 	double coinSize = 1;
 	if (strcmp(rtnOrder.ExchangeCode, "OKEX") == 0) {
-		SymbolInfo *symbolInfo = InitialData::getSymbolInfo(rtnOrder.InstrumentID);
-		coinSize = symbolInfo->CoinOrderSize;
+		coinSize = instrument_->getSymbolInfo().CoinOrderSize;
 	}
 	if (rtnOrder.Direction == INNER_DIRECTION_Buy && rtnOrder.Offset == INNER_OFFSET_CloseToday) {
 		pnlDaily_.TodayLong -= rtnOrder.Volume * coinSize;
@@ -98,6 +134,8 @@ void Position::updatePositionByDouble(const Order &rtnOrder)
 void Position::updatePosition(const Order &rtnOrder)
 {
 	double tempNet = pnlDaily_.NetPosition;
+	double preNetQ = pnlDaily_.BuyQuantity - pnlDaily_.SellQuantity;
+	// update Position by single (binance, okex
 	if ((rtnOrder.ExchangeCode == Exchange_BINANCE) 
 	|| (rtnOrder.ExchangeCode == Exchange_OKEX)
 	|| (rtnOrder.ExchangeCode == Exchange_BYBIT)) {
@@ -107,24 +145,42 @@ void Position::updatePosition(const Order &rtnOrder)
 	}
 
 	pnlDaily_.NetPosition = pnlDaily_.TodayLong - pnlDaily_.TodayShort;
+	double tempNetQ = pnlDaily_.BuyQuantity - pnlDaily_.SellQuantity;
 
 	// calc EntryPrice
-	if (IS_DOUBLE_EQUAL(pnlDaily_.NetPosition, 0)) {
+	if (strcmp(rtnOrder.Category, INVERSE.c_str()) == 0) {
+		if (IS_DOUBLE_EQUAL(tempNetQ, 0)) {
 		pnlDaily_.EntryPrice = 0;
-	} else if (IS_DOUBLE_LESS_EQUAL(tempNet * pnlDaily_.NetPosition, 0)) {
-		pnlDaily_.EntryPrice = rtnOrder.Price;
-	} else if (IS_DOUBLE_GREATER(abs(pnlDaily_.NetPosition), abs(tempNet))) {
-		pnlDaily_.EntryPrice = ((pnlDaily_.EntryPrice * abs(tempNet) + rtnOrder.Price * rtnOrder.Volume)) / 
-			abs(pnlDaily_.NetPosition);
+		} else if (IS_DOUBLE_LESS_EQUAL(preNetQ * tempNetQ, 0)) {
+			pnlDaily_.EntryPrice = rtnOrder.Price;
+		} else if (IS_DOUBLE_GREATER(abs(tempNetQ), abs(preNetQ))) {
+			pnlDaily_.EntryPrice = ((pnlDaily_.EntryPrice * abs(preNetQ) + rtnOrder.Price * rtnOrder.Volume)) / 
+				abs(tempNetQ);
+		}
+	}
+	else {
+		if (IS_DOUBLE_EQUAL(pnlDaily_.NetPosition, 0)) {
+		pnlDaily_.EntryPrice = 0;
+		} else if (IS_DOUBLE_LESS_EQUAL(tempNet * pnlDaily_.NetPosition, 0)) {
+			pnlDaily_.EntryPrice = rtnOrder.Price;
+		} else if (IS_DOUBLE_GREATER(abs(pnlDaily_.NetPosition), abs(tempNet))) {
+			pnlDaily_.EntryPrice = ((pnlDaily_.EntryPrice * abs(tempNet) + rtnOrder.Price * rtnOrder.Volume)) / 
+				abs(pnlDaily_.NetPosition);
+		}
 	}
 
 	LOG_INFO << "updatePosition instrument: " <<pnlDaily_.InstrumentID
 		<< ", orderRef: " << rtnOrder.OrderRef 
 		<< ", exch: " << rtnOrder.ExchangeCode
-		<<  ", NetPosition:  " << pnlDaily_.NetPosition << ", LONG: " << pnlDaily_.TodayLong
+		<<  ", netPosition:  " << pnlDaily_.NetPosition 
+		<< ", long: " << pnlDaily_.TodayLong
 		<< ", short: " << pnlDaily_.TodayShort
-		<< ", EntryPrice: " << pnlDaily_.EntryPrice 
+		<< ", bQ: " << pnlDaily_.BuyQuantity
+		<< ", sQ: " << pnlDaily_.SellQuantity
 		<< ", tempNet: " << tempNet
+		<< ", preNetQ: " << preNetQ
+		<<", tempNetQ: " << tempNetQ
+		<< ", entryPrice: " << pnlDaily_.EntryPrice 
 		<< ", side: " << rtnOrder.Direction
 		<< ", volume: " << rtnOrder.Volume
 		<< ", price: " << rtnOrder.Price;
@@ -134,20 +190,23 @@ void Position::updateUPnlInfo(const Order &rtnOrder)
 {
 	double coinSize = 1;
 	if (strcmp(rtnOrder.ExchangeCode, "OKEX") == 0) {
-		SymbolInfo *symbolInfo = InitialData::getSymbolInfo(rtnOrder.InstrumentID);
-		coinSize = symbolInfo->CoinOrderSize;
+		coinSize = instrument_->getSymbolInfo().CoinOrderSize;
 	}
 	if (rtnOrder.Direction == INNER_DIRECTION_Buy)
 	{
 		pnlDaily_.AvgBuyPrice = avgPrice(pnlDaily_.BuyQuantity, pnlDaily_.AvgBuyPrice, rtnOrder.Volume * coinSize, rtnOrder.Price);
-		pnlDaily_.BuyQuantity += rtnOrder.Volume * coinSize;
+		// pnlDaily_.BuyQuantity += rtnOrder.Volume * coinSize;
 		pnlDaily_.Turnover += rtnOrder.Volume * coinSize;
+		pnlDaily_.Profit = (instrument_->orderBook()->midPrice() - pnlDaily_.AvgBuyPrice) * (pnlDaily_.BuyQuantity + rtnOrder.Volume * coinSize)
+			+ (pnlDaily_.AvgSellPrice - instrument_->orderBook()->midPrice()) * pnlDaily_.SellQuantity;
 	}
 	else if (rtnOrder.Direction == INNER_DIRECTION_Sell)
 	{
 		pnlDaily_.AvgSellPrice = avgPrice(pnlDaily_.SellQuantity, pnlDaily_.AvgSellPrice, rtnOrder.Volume * coinSize, rtnOrder.Price);
-		pnlDaily_.SellQuantity += rtnOrder.Volume * coinSize;
+		// pnlDaily_.SellQuantity += rtnOrder.Volume * coinSize;
 		pnlDaily_.Turnover += rtnOrder.Volume * coinSize;
+		pnlDaily_.Profit = (instrument_->orderBook()->midPrice() - pnlDaily_.AvgBuyPrice) * pnlDaily_.BuyQuantity
+			+ (pnlDaily_.AvgSellPrice - instrument_->orderBook()->midPrice()) * (pnlDaily_.SellQuantity + rtnOrder.Volume * coinSize);
 	}
 	calcAggregateFee(rtnOrder);
 	pnlDaily_.Profit = (instrument_->orderBook()->midPrice() - pnlDaily_.AvgBuyPrice) * pnlDaily_.BuyQuantity
@@ -156,28 +215,23 @@ void Position::updateUPnlInfo(const Order &rtnOrder)
 
 void Position::updateCPnlInfo(const Order &rtnOrder)
 {
-	double coinSize = 1;
-	if (strcmp(rtnOrder.ExchangeCode, "OKEX") == 0) {
-		SymbolInfo *symbolInfo = InitialData::getSymbolInfo(rtnOrder.InstrumentID);
-		coinSize = symbolInfo->CoinOrderSize;
-	}
 	if (rtnOrder.Direction == INNER_DIRECTION_Buy)
 	{
 		// double temVol = rtnOrder.Volume * instrument_->getMultiplier() / rtnOrder.Price;
 		pnlDaily_.AvgBuyPrice = avgPrice(pnlDaily_.BuyQuantity, pnlDaily_.AvgBuyPrice, rtnOrder.Volume, rtnOrder.Price);
 		// pnlDaily_.BuyQuantity += rtnOrder.Volume * instrument_->getMultiplier() / rtnOrder.Price;
-		pnlDaily_.BuyQuantity += rtnOrder.Volume;
+		pnlDaily_.Profit = (instrument_->orderBook()->midPrice() - pnlDaily_.AvgBuyPrice) * (pnlDaily_.BuyQuantity + rtnOrder.Volume * instrument_->getMultiplier() / rtnOrder.Price)
+			+ (pnlDaily_.AvgSellPrice - instrument_->orderBook()->midPrice()) * pnlDaily_.SellQuantity;
 	}
 	else if (rtnOrder.Direction == INNER_DIRECTION_Sell)
 	{
 		// double temVol = rtnOrder.Volume * instrument_->getMultiplier() / rtnOrder.Price;
 		pnlDaily_.AvgSellPrice = avgPrice(pnlDaily_.SellQuantity, pnlDaily_.AvgSellPrice, rtnOrder.Volume, rtnOrder.Price);
 		// pnlDaily_.SellQuantity += rtnOrder.Volume * instrument_->getMultiplier() / rtnOrder.Price;
-		pnlDaily_.SellQuantity += rtnOrder.Volume;
+		pnlDaily_.Profit = (instrument_->orderBook()->midPrice() - pnlDaily_.AvgBuyPrice) * pnlDaily_.BuyQuantity
+			+ (pnlDaily_.AvgSellPrice - instrument_->orderBook()->midPrice()) * (pnlDaily_.SellQuantity + rtnOrder.Volume * instrument_->getMultiplier() / rtnOrder.Price);
 	}
 	calcAggregateFee(rtnOrder);
-	pnlDaily_.Profit = (instrument_->orderBook()->midPrice() - pnlDaily_.AvgBuyPrice) * pnlDaily_.BuyQuantity
-		+ (pnlDaily_.AvgSellPrice - instrument_->orderBook()->midPrice()) * pnlDaily_.SellQuantity;
 }
 
 void Position::updatePnlInfo(const Order &rtnOrder)
@@ -213,8 +267,7 @@ void Position::calcAggregateFeeByRate(const Order &rtnOrder)
 {
 	double coinSize = 1;
 	if (strcmp(rtnOrder.ExchangeCode, "OKEX") == 0) {
-		SymbolInfo *symbolInfo = InitialData::getSymbolInfo(rtnOrder.InstrumentID);
-		coinSize = symbolInfo->CoinOrderSize;
+		coinSize = instrument_->getSymbolInfo().CoinOrderSize;
 	}
 	// maker��
 	if (FEETYPE_MAKER.compare(rtnOrder.MTaker) == 0)

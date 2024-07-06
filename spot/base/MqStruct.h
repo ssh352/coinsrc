@@ -79,6 +79,8 @@ namespace spot
       double AggregatedFee;
       double Profit;
       double EntryPrice;
+      double TLQuantity;
+      double TSQuantity;
 
       void setStrategyID( void *value , uint16_t length = 0) {
         StrategyID = *static_cast<int*>(value);
@@ -185,11 +187,27 @@ namespace spot
         else
           EntryPrice = (double)*static_cast<int64_t*>(value);
       }
+      void setTLQuantity( void *value , uint16_t length = 0) {
+        if (length == 8)
+          TLQuantity = *static_cast<double*>(value);
+        else if (length == 0)
+          TLQuantity = (double)*static_cast<int*>(value);
+        else
+          TLQuantity = (double)*static_cast<int64_t*>(value);
+      }
+      void setTSQuantity( void *value , uint16_t length = 0) {
+        if (length == 8)
+          TSQuantity = *static_cast<double*>(value);
+        else if (length == 0)
+          TSQuantity = (double)*static_cast<int*>(value);
+        else
+          TSQuantity = (double)*static_cast<int64_t*>(value);
+      }
       string toString()
       {
         char buffer[2048];
-        SNPRINTF(buffer, sizeof buffer, "StrategyID=[%d]InstrumentID=[%s]TradingDay=[%s]AvgBuyPrice=[%f]AvgSellPrice=[%f]BuyQuantity=[%f]SellQuantity=[%f]TodayLong=[%f]TodayShort=[%f]NetPosition=[%f]Turnover=[%f]AggregatedFeeByRate=[%f]AggregatedFee=[%f]Profit=[%f]EntryPrice=[%f]",
-                StrategyID,InstrumentID,TradingDay,AvgBuyPrice,AvgSellPrice,BuyQuantity,SellQuantity,TodayLong,TodayShort,NetPosition,Turnover,AggregatedFeeByRate,AggregatedFee,Profit,EntryPrice);
+        SNPRINTF(buffer, sizeof buffer, "StrategyID=[%d]InstrumentID=[%s]TradingDay=[%s]AvgBuyPrice=[%f]AvgSellPrice=[%f]BuyQuantity=[%f]SellQuantity=[%f]TodayLong=[%f]TodayShort=[%f]NetPosition=[%f]Turnover=[%f]AggregatedFeeByRate=[%f]AggregatedFee=[%f]Profit=[%f]EntryPrice=[%f]TLQuantity=[%f]TSQuantity=[%f]",
+                StrategyID,InstrumentID,TradingDay,AvgBuyPrice,AvgSellPrice,BuyQuantity,SellQuantity,TodayLong,TodayShort,NetPosition,Turnover,AggregatedFeeByRate,AggregatedFee,Profit,EntryPrice,TLQuantity,TSQuantity);
         return buffer;
       }
 
@@ -209,6 +227,8 @@ namespace spot
         methodMap["AggregatedFee"] = std::bind(&StrategyInstrumentPNLDaily::setAggregatedFee, this, _1,_2);
         methodMap["Profit"] = std::bind(&StrategyInstrumentPNLDaily::setProfit, this, _1,_2);
         methodMap["EntryPrice"] = std::bind(&StrategyInstrumentPNLDaily::setEntryPrice, this, _1,_2);
+        methodMap["TLQuantity"] = std::bind(&StrategyInstrumentPNLDaily::setTLQuantity, this, _1,_2);
+        methodMap["TSQuantity"] = std::bind(&StrategyInstrumentPNLDaily::setTSQuantity, this, _1,_2);
       }
 
       string toJson() const {
@@ -251,6 +271,10 @@ namespace spot
           doc.AddMember("Profit",Profit, allocator);
         if (!std::isnan(EntryPrice))
           doc.AddMember("EntryPrice",EntryPrice, allocator);
+        if (!std::isnan(TLQuantity))
+          doc.AddMember("TLQuantity",TLQuantity, allocator);
+        if (!std::isnan(TSQuantity))
+          doc.AddMember("TSQuantity",TSQuantity, allocator);
         outDoc.AddMember("Title", spotrapidjson::Value().SetString("StrategyInstrumentPNLDaily"), outAllocator);
         outDoc.AddMember("Content", doc, outAllocator);
         spotrapidjson::StringBuffer strbuf;

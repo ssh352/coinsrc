@@ -47,6 +47,7 @@ namespace spot
 			void updatePositionByDouble(const Order &rtnOrder);
 			StrategyInstrumentPNLDaily pnlDaily_;
 			Instrument *instrument_;
+			bool isInit_;
 		};
 		inline Instrument* Position::getInstrument()
 		{
