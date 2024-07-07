@@ -49,8 +49,8 @@ StrategyInstrumentPNLDaily Position::OnRtnOrder(const Order &rtnOrder)
 {
 	std::string today = TradingDay::getToday();
 	memcpy(pnlDaily_.TradingDay, today.c_str(), min(TradingDayLen, uint16_t(today.size())));
-	updatePosition(rtnOrder);
 	updatePnlInfo(rtnOrder);
+	updatePosition(rtnOrder);
 	checkPnlInfo();
 	return pnlDaily_;
 }
