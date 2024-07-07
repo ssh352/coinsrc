@@ -183,7 +183,8 @@ void Position::updatePosition(const Order &rtnOrder)
 		<< ", entryPrice: " << pnlDaily_.EntryPrice 
 		<< ", side: " << rtnOrder.Direction
 		<< ", volume: " << rtnOrder.Volume
-		<< ", price: " << rtnOrder.Price;
+		<< ", price: " << rtnOrder.Price
+		<< ", Type: " << rtnOrder.StType;
 }
 
 void Position::updateUPnlInfo(const Order &rtnOrder)
