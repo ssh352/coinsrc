@@ -35,6 +35,7 @@ StrategyFR::StrategyFR(int strategyID, StrategyParameter *params)
     symbol_map = new map<string, string>;
 
     pre_sum_equity = 0;
+    bal = 0;
     cancel_order_interval = *parameters()->getInt("cancel_order_interval");
 }
 
@@ -1570,7 +1571,7 @@ void StrategyFR::OnRtnInnerMarketDataTradingLogic(const InnerMarketData &marketD
         LOG_ERROR << "OnRtnInnerMarketDataTradingLogic sy2 nullptr: " << sy1.sy;
         return;
     }
-    double bal = calc_balance();
+    bal = calc_balance();
     double delta_posi = sy1.real_pos + sy2->real_pos;
     if (IS_DOUBLE_GREATER(abs(delta_posi) * sy1.mid_p, 2 * sy1.fragment)) {
         LOG_ERROR <<  "more than 2 * fragment " << sy1.sy << ", delta_posi: " << delta_posi;
